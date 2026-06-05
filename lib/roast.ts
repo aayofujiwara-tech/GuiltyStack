@@ -95,9 +95,12 @@ export function pickRoast(
   contentType: ContentType,
   vars: RoastVars
 ): string {
-  const pool = ROAST_LINES[level].filter(
-    (r) => r.tags.includes('all') || r.tags.includes(contentType)
-  )
-  const line = pool[Math.floor(Math.random() * pool.length)]
+  const pool = ROAST_LINES[level].filter((r) => {
+    if (!r.tags.includes('all') && !r.tags.includes(contentType)) return false
+    if (vars.per_day === 0 && r.text.includes('${per_day}')) return false
+    return true
+  })
+  const candidates = pool.length > 0 ? pool : ROAST_LINES[level]
+  const line = candidates[Math.floor(Math.random() * candidates.length)]
   return applyVars(line.text, vars)
 }

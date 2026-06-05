@@ -17,6 +17,11 @@ const STATUS_LABELS: Record<ContentStatus, string> = {
   unplayed: '未消化', in_progress: '進行中', completed: '消化済み', abandoned: '放棄',
 }
 
+const COMPLETION_TEXT: Partial<Record<ContentStatus, string>> = {
+  completed: '昇天しました。お疲れ様でした。',
+  abandoned: '放棄を認めた。潔い。',
+}
+
 export default function ItemPage() {
   const { id }   = useParams<{ id: string }>()
   const router   = useRouter()
@@ -40,6 +45,9 @@ export default function ItemPage() {
   }, [user, id, isTestMode, testContents])
 
   const handleStatusChange = async (status: ContentStatus) => {
+    // ローカルstateを即時更新してスコア反映
+    setItem((prev) => prev ? { ...prev, status } : null)
+
     if (isTestMode) {
       updateTestStatus(id, status)
       router.push('/')
@@ -67,13 +75,22 @@ export default function ItemPage() {
   if (loading) return <div className="p-8 text-center text-gray-400">読み込み中...</div>
   if (!item)   return <div className="p-8 text-center text-gray-400">見つかりません</div>
 
-  const level = getScoreLevel(item.score.total)
-  const meta  = SCORE_LEVEL_META[level]
-  const roastText = pickRoast(level, item.type, {
-    title: item.title, price: item.price, days: item.score.days,
-    months: item.score.days / 30, per_day: item.price / Math.max(item.score.days, 1),
-    fresh_months: item.score.freshMonths, undone: 0,
-  })
+  const isDone = item.status === 'completed' || item.status === 'abandoned'
+  const displayScore = isDone ? 0 : item.score.total
+  const level = getScoreLevel(displayScore)
+  const meta  = isDone ? SCORE_LEVEL_META['peace'] : SCORE_LEVEL_META[level]
+
+  const roastText = isDone
+    ? COMPLETION_TEXT[item.status]!
+    : pickRoast(level, item.type, {
+        title: item.title,
+        price: item.price,
+        days: item.score.days,
+        months: item.score.days / 30,
+        per_day: item.score.days > 0 ? Math.round(item.price / item.score.days) : 0,
+        fresh_months: item.score.freshMonths,
+        undone: 0,
+      })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -99,15 +116,17 @@ export default function ItemPage() {
                 {TYPE_LABEL[item.type]}{item.platform && ` · ${item.platform}`} · ¥{item.price.toLocaleString()}
               </p>
             </div>
-            <ScoreBadge score={item.score.total} size="lg" />
+            <ScoreBadge score={displayScore} size="lg" />
           </div>
           <p className="text-base italic text-gray-700 mb-4 border-l-4 border-red-400 pl-3">「{roastText}」</p>
-          <div className="space-y-2">
-            <ScoreBar label="日数" value={item.score.dayScore}       max={30} />
-            <ScoreBar label="消化" value={item.score.digestScore}    max={25} />
-            <ScoreBar label="金額" value={item.score.priceScore}     max={20} />
-            <ScoreBar label="鮮度" value={item.score.freshnessScore} max={25} />
-          </div>
+          {!isDone && (
+            <div className="space-y-2">
+              <ScoreBar label="日数" value={item.score.dayScore}       max={30} />
+              <ScoreBar label="消化" value={item.score.digestScore}    max={25} />
+              <ScoreBar label="金額" value={item.score.priceScore}     max={20} />
+              <ScoreBar label="鮮度" value={item.score.freshnessScore} max={25} />
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl border p-4 space-y-3">

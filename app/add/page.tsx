@@ -30,12 +30,39 @@ export default function AddPage() {
     setError('')
 
     const fd = new FormData(e.currentTarget)
+    const titleVal      = (fd.get('title') as string).trim()
+    const priceVal      = parseInt(fd.get('price') as string, 10)
+    const purchasedAt   = fd.get('purchased_at') as string
+    const releaseDate   = fd.get('release_date') as string
+    const todayStr      = new Date().toISOString().split('T')[0]
+
+    if (!titleVal) {
+      setError('タイトルを入力してください')
+      setSubmitting(false)
+      return
+    }
+    if (priceVal < 0) {
+      setError('金額は0円以上で入力してください')
+      setSubmitting(false)
+      return
+    }
+    if (purchasedAt > todayStr) {
+      setError('購入日は今日以前の日付を入力してください')
+      setSubmitting(false)
+      return
+    }
+    if (releaseDate > purchasedAt) {
+      setError('発売日は購入日以前の日付を入力してください')
+      setSubmitting(false)
+      return
+    }
+
     const payload = {
-      title:           fd.get('title') as string,
+      title:           titleVal,
       type:            fd.get('type') as ContentType,
-      price:           parseInt(fd.get('price') as string, 10),
-      purchased_at:    fd.get('purchased_at') as string,
-      release_date:    fd.get('release_date') as string,
+      price:           priceVal,
+      purchased_at:    purchasedAt,
+      release_date:    releaseDate,
       platform:        (fd.get('platform') as string) || null,
       cover_image_url: (fd.get('cover_image_url') as string) || null,
       tags:            (fd.get('tags') as string)

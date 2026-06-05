@@ -7,13 +7,31 @@ import './globals.css'
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
 
 export const metadata: Metadata = {
-  title: '積罪 | GuiltyStack',
-  description: '積んでいるコンテンツの後悔指数を自動計算し、毒舌で断罪するWebアプリ',
+  title: '積罪 - GuiltyStack',
+  description: '積みコンテンツを断罪するアプリ。後悔スコアで容赦なく裁かれろ。',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '積罪',
+  },
+  openGraph: {
+    title: '積罪 - GuiltyStack',
+    description: '積みコンテンツを断罪するアプリ。後悔スコアで容赦なく裁かれろ。',
+    url: 'https://guilty-stack.vercel.app',
+    siteName: 'GuiltyStack',
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: '積罪 - GuiltyStack',
+    description: '積みコンテンツを断罪するアプリ。後悔スコアで容赦なく裁かれろ。',
+  },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#ef4444',
+  themeColor: '#dc2626',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
