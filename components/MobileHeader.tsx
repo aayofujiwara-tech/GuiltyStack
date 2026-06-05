@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTestMode } from '@/context/TestModeContext'
+import { useAuth } from '@/context/AuthContext'
+import { logout } from '@/lib/auth'
 
 interface Props {
   totalPrice?: number
@@ -13,6 +15,12 @@ interface Props {
 export function MobileHeader({ totalPrice = 0, avgScore = 0, oldestDays = 0 }: Props) {
   const router = useRouter()
   const { isTestMode, exitTestMode } = useTestMode()
+  const { user } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push('/auth')
+  }
 
   const handleLogin = () => {
     exitTestMode()
@@ -31,9 +39,16 @@ export function MobileHeader({ totalPrice = 0, avgScore = 0, oldestDays = 0 }: P
       )}
       <div className="flex items-center justify-between px-4 py-3">
         <h1 className="font-black text-base text-gray-900">💀 積罪</h1>
-        <Link href="/stats" className="text-xs text-gray-500 hover:text-red-600">
-          ¥{totalPrice.toLocaleString()} | {avgScore}点 | 最古{oldestDays}日
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/stats" className="text-xs text-gray-500 hover:text-red-600">
+            ¥{totalPrice.toLocaleString()} | {avgScore}点 | 最古{oldestDays}日
+          </Link>
+          {user && (
+            <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-red-600 transition-colors">
+              ログアウト
+            </button>
+          )}
+        </div>
       </div>
     </header>
   )

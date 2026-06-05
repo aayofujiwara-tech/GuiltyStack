@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTestMode } from '@/context/TestModeContext'
+import { useAuth } from '@/context/AuthContext'
+import { logout } from '@/lib/auth'
 
 interface StatsData {
   totalPrice: number
@@ -26,6 +28,12 @@ export function Sidebar({ stats }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const { isTestMode, exitTestMode } = useTestMode()
+  const { user } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push('/auth')
+  }
 
   const handleLogin = () => {
     exitTestMode()
@@ -85,6 +93,18 @@ export function Sidebar({ stats }: Props) {
             ログインして始める →
           </button>
           <p className="text-xs text-gray-400 mt-1">リロードでデータは消えます</p>
+        </div>
+      )}
+
+      {user && (
+        <div className={`${stats || isTestMode ? 'mt-4' : 'mt-auto'} border-t pt-4`}>
+          <p className="text-xs text-gray-400 truncate mb-2">{user.email ?? user.displayName}</p>
+          <button
+            onClick={handleLogout}
+            className="text-xs text-gray-500 hover:text-red-600 transition-colors"
+          >
+            ログアウト
+          </button>
         </div>
       )}
     </aside>
