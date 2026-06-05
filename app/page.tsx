@@ -33,12 +33,14 @@ export default function HomePage() {
       if (!user) return
       data = await fetchContents(user.uid)
     }
-    const enriched = enrichContents(data)
+    // id重複排除（Firestoreの多重取得・テストデータ破損対策）
+    const unique = data.filter((item, idx, self) => idx === self.findIndex(t => t.id === item.id))
+    const enriched = enrichContents(unique)
     const active = enriched.filter((c) => c.status !== 'completed' && c.status !== 'abandoned')
     const pc = window.innerWidth >= 1024
     setIsPC(pc)
-    setItems(enriched)
-    setSentenced(lotteryPick(enriched, pc ? 2 : 3))
+    setItems(active)
+    setSentenced(lotteryPick(active, pc ? 2 : 3))
     setDataLoading(false)
   }, [user, isTestMode, testContents])
 
