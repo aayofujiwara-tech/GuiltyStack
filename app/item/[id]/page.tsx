@@ -89,7 +89,7 @@ export default function ItemPage() {
         months: item.score.days / 30,
         per_day: item.score.days > 0 ? Math.round(item.price / item.score.days) : 0,
         fresh_months: item.score.freshMonths,
-        undone: 0,
+        undone: item.undoneCount,
       })
 
   return (

@@ -33,8 +33,8 @@ export default function HomePage() {
       if (!user) return
       data = await fetchContents(user.uid)
     }
-    const active = data.filter((c) => c.status !== 'completed' && c.status !== 'abandoned')
-    const enriched = enrichContents(active)
+    const enriched = enrichContents(data)
+    const active = enriched.filter((c) => c.status !== 'completed' && c.status !== 'abandoned')
     const pc = window.innerWidth >= 1024
     setIsPC(pc)
     setItems(enriched)

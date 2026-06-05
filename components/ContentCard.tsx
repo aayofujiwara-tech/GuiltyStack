@@ -26,7 +26,7 @@ export function ContentCard({ item, showBreakdown = false, onComplete }: Props) 
     months: item.score.days / 30,
     per_day: item.score.days > 0 ? Math.round(item.price / item.score.days) : 0,
     fresh_months: item.score.freshMonths,
-    undone: 0,
+    undone: item.undoneCount,
   }), [item.id])
 
   return (

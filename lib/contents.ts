@@ -4,6 +4,7 @@ import { calcRegretScore, calcLotteryWeight, ScoreBreakdown } from './score'
 export interface ContentWithScore extends Content {
   score: ScoreBreakdown
   lotteryWeight: number
+  undoneCount: number
 }
 
 export function enrichContents(contents: Content[]): ContentWithScore[] {
@@ -22,10 +23,14 @@ export function enrichContents(contents: Content[]): ContentWithScore[] {
 
   return contents.map((c) => {
     const score = calcRegretScore(c, statsByType[c.type])
+    const undoneCount = contents.filter(
+      (x) => x.type === c.type && x.id !== c.id && (x.status === 'unplayed' || x.status === 'in_progress')
+    ).length
     return {
       ...c,
       score,
       lotteryWeight: calcLotteryWeight(score.total, score.days, c.price),
+      undoneCount,
     }
   })
 }

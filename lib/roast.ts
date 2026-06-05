@@ -98,6 +98,7 @@ export function pickRoast(
   const pool = ROAST_LINES[level].filter((r) => {
     if (!r.tags.includes('all') && !r.tags.includes(contentType)) return false
     if (vars.per_day === 0 && r.text.includes('${per_day}')) return false
+    if (vars.undone === 0 && r.text.includes('${undone}')) return false
     return true
   })
   const candidates = pool.length > 0 ? pool : ROAST_LINES[level]
