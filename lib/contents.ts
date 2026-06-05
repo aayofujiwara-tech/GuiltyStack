@@ -1,10 +1,12 @@
 import { Content, ContentType, SameTypeStats } from './types'
-import { calcRegretScore, calcLotteryWeight, ScoreBreakdown } from './score'
+import { calcRegretScore, calcLotteryWeight, ScoreBreakdown, getScoreLevel } from './score'
+import { pickRoast } from './roast'
 
 export interface ContentWithScore extends Content {
   score: ScoreBreakdown
   lotteryWeight: number
   undoneCount: number
+  roastText: string
 }
 
 export function enrichContents(contents: Content[]): ContentWithScore[] {
@@ -21,16 +23,28 @@ export function enrichContents(contents: Content[]): ContentWithScore[] {
     if (c.status === 'completed') statsByType[c.type].completed++
   }
 
+  const usedTexts = new Set<string>()
   return contents.map((c) => {
     const score = calcRegretScore(c, statsByType[c.type])
     const undoneCount = contents.filter(
       (x) => x.type === c.type && x.id !== c.id && (x.status === 'unplayed' || x.status === 'in_progress')
     ).length
+    const level = getScoreLevel(score.total)
+    const roastText = pickRoast(level, c.type, {
+      title: c.title,
+      price: c.price,
+      days: score.days,
+      months: score.days / 30,
+      per_day: score.days > 0 ? Math.round(c.price / score.days) : 0,
+      fresh_months: score.freshMonths,
+      undone: undoneCount,
+    }, usedTexts)
     return {
       ...c,
       score,
       lotteryWeight: calcLotteryWeight(score.total, score.days, c.price),
       undoneCount,
+      roastText,
     }
   })
 }

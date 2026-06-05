@@ -6,8 +6,6 @@ import { TYPE_ICON, TYPE_LABEL } from '@/lib/contents'
 import { getScoreLevel, SCORE_LEVEL_META } from '@/lib/score'
 import { ScoreBadge } from './ScoreBadge'
 import { ScoreBar } from './ScoreBar'
-import { pickRoast } from '@/lib/roast'
-import { useMemo } from 'react'
 
 interface Props {
   item: ContentWithScore
@@ -18,16 +16,7 @@ interface Props {
 export function ContentCard({ item, showBreakdown = false, onComplete }: Props) {
   const level = getScoreLevel(item.score.total)
   const meta = SCORE_LEVEL_META[level]
-
-  const roastText = useMemo(() => pickRoast(level, item.type, {
-    title: item.title,
-    price: item.price,
-    days: item.score.days,
-    months: item.score.days / 30,
-    per_day: item.score.days > 0 ? Math.round(item.price / item.score.days) : 0,
-    fresh_months: item.score.freshMonths,
-    undone: item.undoneCount,
-  }), [item.id])
+  const roastText = item.roastText
 
   return (
     <div className={`rounded-xl border p-4 flex flex-col gap-3 ${meta.bg} ${meta.border}`}>

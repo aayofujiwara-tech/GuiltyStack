@@ -93,15 +93,18 @@ function applyVars(text: string, vars: RoastVars): string {
 export function pickRoast(
   level: ScoreLevel,
   contentType: ContentType,
-  vars: RoastVars
+  vars: RoastVars,
+  usedTexts: Set<string> = new Set()
 ): string {
-  const pool = ROAST_LINES[level].filter((r) => {
+  const baseFilter = (r: RoastLine) => {
     if (!r.tags.includes('all') && !r.tags.includes(contentType)) return false
     if (vars.per_day === 0 && r.text.includes('${per_day}')) return false
     if (vars.undone === 0 && r.text.includes('${undone}')) return false
     return true
-  })
-  const candidates = pool.length > 0 ? pool : ROAST_LINES[level]
+  }
+  const pool = ROAST_LINES[level].filter((r) => baseFilter(r) && !usedTexts.has(r.text))
+  const candidates = pool.length > 0 ? pool : ROAST_LINES[level].filter(baseFilter)
   const line = candidates[Math.floor(Math.random() * candidates.length)]
+  usedTexts.add(line.text)
   return applyVars(line.text, vars)
 }
