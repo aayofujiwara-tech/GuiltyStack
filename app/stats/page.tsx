@@ -31,10 +31,11 @@ export default function StatsPage() {
   const active    = items.filter((i) => i.status !== 'completed' && i.status !== 'abandoned')
   const completed = items.filter((i) => i.status === 'completed')
   const abandoned = items.filter((i) => i.status === 'abandoned')
-  const totalPrice   = active.reduce((s, i) => s + i.price, 0)
-  const avgScore     = active.length ? Math.round(active.reduce((s, i) => s + i.score.total, 0) / active.length) : 0
-  const regretTotal  = items.reduce((s, i) => s + i.price, 0) - completed.reduce((s, i) => s + i.price, 0)
-  const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0,0,0,0)
+  const totalPrice      = active.reduce((s, i) => s + i.price, 0)
+  const avgScore        = active.length ? Math.round(active.reduce((s, i) => s + i.score.total, 0) / active.length) : 0
+  const totalPurchased  = items.reduce((s, i) => s + i.price, 0)
+  const ascendedAmount  = completed.reduce((s, i) => s + i.price, 0)
+  const thisMonthStart  = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0,0,0,0)
   const confessedThisMonth = completed.filter((i) => new Date(i.updated_at) >= thisMonthStart).length
 
   const byType = (['game','book','manga','movie','anime'] as ContentType[]).map((t) => {
@@ -53,10 +54,11 @@ export default function StatsPage() {
       </header>
       <div className="max-w-2xl mx-auto p-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">
+          <StatCard label="購入総額"       value={`¥${totalPurchased.toLocaleString()}`} sub="積み・消化済み含む総投資額" />
           <StatCard label="総積み額"       value={`¥${totalPrice.toLocaleString()}`} />
           <StatCard label="平均後悔スコア" value={`${avgScore}点`} />
-          <StatCard label="累計後悔額"     value={`¥${regretTotal.toLocaleString()}`} sub="購入総額-消化金額" />
-          <StatCard label="今月の懺悔数"   value={`${confessedThisMonth}件`}          sub="今月消化済み" />
+          <StatCard label="昇天額"         value={`¥${ascendedAmount.toLocaleString()}`} sub="消化できたコンテンツへの投資額" />
+          <StatCard label="今月の懺悔数"   value={`${confessedThisMonth}件`}             sub="今月消化済み" />
           <StatCard label="放棄数"         value={`${abandoned.length}件`} />
           <StatCard label="消化済み"       value={`${completed.length}件`} />
         </div>
