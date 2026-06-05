@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
+import { useTestMode } from '@/context/TestModeContext'
 import { fetchContents, updateContentStatus } from '@/lib/firestore'
 import { Content } from '@/lib/types'
 import { ContentWithScore, enrichContents, lotteryPick } from '@/lib/contents'
@@ -15,6 +16,7 @@ type SortKey = 'score' | 'date' | 'price'
 
 export default function HomePage() {
   const { user, loading: authLoading } = useAuth()
+  const { isTestMode, testContents, updateTestStatus } = useTestMode()
   const router = useRouter()
   const [items, setItems]         = useState<ContentWithScore[]>([])
   const [sentenced, setSentenced] = useState<ContentWithScore[]>([])
@@ -23,27 +25,36 @@ export default function HomePage() {
   const [isPC, setIsPC]           = useState(false)
 
   const load = useCallback(async () => {
-    if (!user) return
     setDataLoading(true)
-    const data = await fetchContents(user.uid)
+    let data: Content[]
+    if (isTestMode) {
+      data = testContents
+    } else {
+      if (!user) return
+      data = await fetchContents(user.uid)
+    }
     const active = data.filter((c) => c.status !== 'completed' && c.status !== 'abandoned')
-    const enriched = enrichContents(active as Content[])
+    const enriched = enrichContents(active)
     const pc = window.innerWidth >= 1024
     setIsPC(pc)
     setItems(enriched)
     setSentenced(lotteryPick(enriched, pc ? 2 : 3))
     setDataLoading(false)
-  }, [user])
+  }, [user, isTestMode, testContents])
 
   useEffect(() => {
-    if (!authLoading && !user) router.push('/auth')
-  }, [authLoading, user, router])
+    if (!authLoading && !user && !isTestMode) router.push('/auth')
+  }, [authLoading, user, isTestMode, router])
 
   useEffect(() => {
-    if (user) load()
-  }, [user, load])
+    if (user || isTestMode) load()
+  }, [user, isTestMode, load])
 
   const handleComplete = async (id: string) => {
+    if (isTestMode) {
+      updateTestStatus(id, 'completed')
+      return
+    }
     if (!user) return
     await updateContentStatus(user.uid, id, 'completed')
     load()
@@ -65,7 +76,7 @@ export default function HomePage() {
   )
   const stats = { totalPrice, avgScore, oldestTitle: oldest?.title ?? '—', oldestDays: oldest?.score.days ?? 0 }
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading || (!user && !authLoading && !isTestMode)) {
     return <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 animate-pulse">読み込み中...</p></div>
   }
 

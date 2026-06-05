@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '@/lib/auth'
+import { useTestMode } from '@/context/TestModeContext'
 
 export default function AuthPage() {
   const router = useRouter()
+  const { enterTestMode } = useTestMode()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode]         = useState<'login' | 'signup'>('login')
@@ -14,6 +16,11 @@ export default function AuthPage() {
   const [error, setError]       = useState('')
 
   const go = () => router.push('/')
+
+  const handleTestMode = () => {
+    enterTestMode()
+    router.push('/')
+  }
 
   const handleGoogle = async () => {
     setLoading(true)
@@ -113,6 +120,20 @@ export default function AuthPage() {
             {loading ? '処理中...' : mode === 'login' ? 'ログイン' : '新規登録'}
           </button>
         </form>
+
+        <div className="flex items-center gap-3 text-xs text-gray-400">
+          <div className="flex-1 h-px bg-gray-200" />
+          または
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleTestMode}
+          className="w-full border border-gray-300 rounded-lg py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          👀 テストモードで試す（登録不要）
+        </button>
       </div>
     </div>
   )

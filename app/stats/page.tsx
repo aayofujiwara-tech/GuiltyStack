@@ -3,24 +3,28 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
+import { useTestMode } from '@/context/TestModeContext'
 import { fetchContents } from '@/lib/firestore'
 import { Content, ContentType } from '@/lib/types'
 import { ContentWithScore, enrichContents, TYPE_ICON, TYPE_LABEL } from '@/lib/contents'
 
 export default function StatsPage() {
   const { user } = useAuth()
+  const { isTestMode, testContents } = useTestMode()
   const [items, setItems]   = useState<ContentWithScore[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!user && !isTestMode) return
     const load = async () => {
-      if (!user) return
-      const data = await fetchContents(user.uid)
-      setItems(enrichContents(data as Content[]))
+      const data: Content[] = isTestMode
+        ? testContents
+        : await fetchContents(user!.uid)
+      setItems(enrichContents(data))
       setLoading(false)
     }
-    if (user) load()
-  }, [user])
+    load()
+  }, [user, isTestMode, testContents])
 
   if (loading) return <div className="p-8 text-center text-gray-400">集計中...</div>
 

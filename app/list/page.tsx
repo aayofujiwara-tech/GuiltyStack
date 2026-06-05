@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
+import { useTestMode } from '@/context/TestModeContext'
 import { fetchContents, updateContentStatus } from '@/lib/firestore'
 import { Content, ContentType, ContentStatus } from '@/lib/types'
 import { ContentWithScore, enrichContents, TYPE_ICON } from '@/lib/contents'
@@ -20,6 +21,7 @@ const STATUS_LABELS: Record<ContentStatus | 'all', string> = {
 
 export default function ListPage() {
   const { user }    = useAuth()
+  const { isTestMode, testContents, updateTestStatus } = useTestMode()
   const [items, setItems]           = useState<ContentWithScore[]>([])
   const [loading, setLoading]       = useState(true)
   const [sort, setSort]             = useState<SortKey>('score')
@@ -27,19 +29,27 @@ export default function ListPage() {
   const [statusFilter, setStatusFilter] = useState<ContentStatus | 'all'>('all')
   const [search, setSearch]         = useState('')
 
-  const load = async () => {
-    if (!user) return
-    const data = await fetchContents(user.uid)
-    setItems(enrichContents(data as Content[]))
-    setLoading(false)
-  }
-
-  useEffect(() => { if (user) load() }, [user])
+  useEffect(() => {
+    if (!user && !isTestMode) return
+    const load = async () => {
+      const data: Content[] = isTestMode
+        ? testContents
+        : await fetchContents(user!.uid)
+      setItems(enrichContents(data))
+      setLoading(false)
+    }
+    load()
+  }, [user, isTestMode, testContents])
 
   const handleComplete = async (id: string) => {
+    if (isTestMode) {
+      updateTestStatus(id, 'completed')
+      return
+    }
     if (!user) return
     await updateContentStatus(user.uid, id, 'completed')
-    load()
+    const data = await fetchContents(user.uid)
+    setItems(enrichContents(data as Content[]))
   }
 
   const filtered = items

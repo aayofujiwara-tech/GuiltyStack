@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import { AuthProvider } from '@/context/AuthContext'
+import { TestModeProvider } from '@/context/TestModeContext'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full bg-gray-50 text-gray-900">
-        <AuthProvider>{children}</AuthProvider>
+        <TestModeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </TestModeProvider>
       </body>
     </html>
   )

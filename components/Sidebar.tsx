@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useTestMode } from '@/context/TestModeContext'
 
 interface StatsData {
   totalPrice: number
@@ -23,9 +24,24 @@ const NAV = [
 
 export function Sidebar({ stats }: Props) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { isTestMode, exitTestMode } = useTestMode()
+
+  const handleLogin = () => {
+    exitTestMode()
+    router.push('/auth')
+  }
+
   return (
     <aside className="hidden lg:flex flex-col w-52 shrink-0 sticky top-0 h-screen border-r border-gray-200 bg-white p-4">
-      <h1 className="font-black text-lg mb-6 text-gray-900">💀 積罪</h1>
+      <h1 className="font-black text-lg mb-2 text-gray-900">💀 積罪</h1>
+
+      {isTestMode && (
+        <div className="mb-4 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 font-medium">
+          🧪 テストモード中
+        </div>
+      )}
+
       <nav className="flex flex-col gap-1">
         {NAV.map((n) => (
           <Link
@@ -41,6 +57,7 @@ export function Sidebar({ stats }: Props) {
           </Link>
         ))}
       </nav>
+
       {stats && (
         <div className="mt-auto border-t pt-4 space-y-3">
           <div>
@@ -56,6 +73,18 @@ export function Sidebar({ stats }: Props) {
             <p className="font-bold text-gray-900 text-sm truncate">{stats.oldestTitle}</p>
             <p className="text-xs text-gray-500">{stats.oldestDays}日</p>
           </div>
+        </div>
+      )}
+
+      {isTestMode && (
+        <div className={`${stats ? 'mt-4' : 'mt-auto'} border-t pt-4`}>
+          <button
+            onClick={handleLogin}
+            className="text-xs text-red-600 hover:underline font-medium"
+          >
+            ログインして始める →
+          </button>
+          <p className="text-xs text-gray-400 mt-1">リロードでデータは消えます</p>
         </div>
       )}
     </aside>

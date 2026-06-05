@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
+import { useTestMode } from '@/context/TestModeContext'
 import { addContent } from '@/lib/firestore'
 import { ContentType } from '@/lib/types'
 
@@ -18,32 +19,46 @@ const TYPES: { value: ContentType; label: string; icon: string }[] = [
 export default function AddPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { isTestMode, addTestContent } = useTestMode()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
   const today = new Date().toISOString().split('T')[0]
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!user) { setError('ログインが必要です'); return }
     setSubmitting(true)
     setError('')
 
     const fd = new FormData(e.currentTarget)
+    const payload = {
+      title:           fd.get('title') as string,
+      type:            fd.get('type') as ContentType,
+      price:           parseInt(fd.get('price') as string, 10),
+      purchased_at:    fd.get('purchased_at') as string,
+      release_date:    fd.get('release_date') as string,
+      platform:        (fd.get('platform') as string) || null,
+      cover_image_url: (fd.get('cover_image_url') as string) || null,
+      tags:            (fd.get('tags') as string)
+        ? (fd.get('tags') as string).split(/[,、]/).map((t) => t.trim()).filter(Boolean)
+        : null,
+      status:           'unplayed' as const,
+      freshness_source: 'manual' as const,
+    }
+
     try {
-      await addContent(user.uid, {
-        title:           fd.get('title') as string,
-        type:            fd.get('type') as ContentType,
-        price:           parseInt(fd.get('price') as string, 10),
-        purchased_at:    fd.get('purchased_at') as string,
-        release_date:    fd.get('release_date') as string,
-        platform:        (fd.get('platform') as string) || null,
-        cover_image_url: (fd.get('cover_image_url') as string) || null,
-        tags:            (fd.get('tags') as string)
-          ? (fd.get('tags') as string).split(/[,、]/).map((t) => t.trim()).filter(Boolean)
-          : null,
-        status:           'unplayed',
-        freshness_source: 'manual',
-      })
+      if (isTestMode) {
+        const now = new Date().toISOString().split('T')[0]
+        addTestContent({
+          ...payload,
+          id: `test-${Date.now()}`,
+          user_id: 'test-user',
+          created_at: now,
+          updated_at: now,
+        })
+      } else {
+        if (!user) { setError('ログインが必要です'); setSubmitting(false); return }
+        await addContent(user.uid, payload)
+      }
       router.push('/')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'エラーが発生しました')
@@ -56,6 +71,11 @@ export default function AddPage() {
       <header className="bg-white border-b px-4 py-3 flex items-center gap-3">
         <Link href="/" className="text-gray-500 hover:text-gray-900">←</Link>
         <h1 className="font-bold">コンテンツ登録</h1>
+        {isTestMode && (
+          <span className="ml-auto text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+            テスト追加（リロードで消えます）
+          </span>
+        )}
       </header>
 
       <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 space-y-5">

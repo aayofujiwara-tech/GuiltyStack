@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
+import { useTestMode } from '@/context/TestModeContext'
 import { fetchContents, updateContentStatus, deleteContent } from '@/lib/firestore'
 import { Content, ContentStatus } from '@/lib/types'
 import { ContentWithScore, enrichContents, TYPE_ICON, TYPE_LABEL } from '@/lib/contents'
@@ -20,30 +21,44 @@ export default function ItemPage() {
   const { id }   = useParams<{ id: string }>()
   const router   = useRouter()
   const { user } = useAuth()
+  const { isTestMode, testContents, updateTestStatus, deleteTestContent } = useTestMode()
   const [item, setItem]     = useState<ContentWithScore | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
+    if (!user && !isTestMode) return
     const load = async () => {
-      if (!user) return
-      const all = await fetchContents(user.uid)
-      const enriched = enrichContents(all as Content[])
+      const all: Content[] = isTestMode
+        ? testContents
+        : await fetchContents(user!.uid)
+      const enriched = enrichContents(all)
       setItem(enriched.find((i) => i.id === id) ?? null)
       setLoading(false)
     }
-    if (user) load()
-  }, [user, id])
+    load()
+  }, [user, id, isTestMode, testContents])
 
   const handleStatusChange = async (status: ContentStatus) => {
+    if (isTestMode) {
+      updateTestStatus(id, status)
+      router.push('/')
+      return
+    }
     if (!user) return
     await updateContentStatus(user.uid, id, status)
     router.push('/')
   }
 
   const handleDelete = async () => {
-    if (!user || !item) return
+    if (!item) return
     if (!confirm(`「${item.title}」を削除しますか？`)) return
+    if (isTestMode) {
+      deleteTestContent(id)
+      router.push('/')
+      return
+    }
+    if (!user) return
     setDeleting(true)
     await deleteContent(user.uid, id)
     router.push('/')
