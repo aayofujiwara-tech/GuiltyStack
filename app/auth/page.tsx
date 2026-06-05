@@ -2,34 +2,48 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import Image from 'next/image'
+import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '@/lib/auth'
 
 export default function AuthPage() {
   const router = useRouter()
-  const supabase = createClient()
-  const [email, setEmail] = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [mode, setMode]         = useState<'login' | 'signup'>('login')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const go = () => router.push('/')
+
+  const handleGoogle = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await signInWithGoogle()
+      go()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'エラーが発生しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    setMessage('')
-
-    if (mode === 'signup') {
-      const { error: err } = await supabase.auth.signUp({ email, password })
-      if (err) setError(err.message)
-      else setMessage('確認メールを送信しました。メールを確認してください。')
-    } else {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-      if (err) setError(err.message)
-      else router.push('/')
+    try {
+      if (mode === 'login') {
+        await signInWithEmail(email, password)
+      } else {
+        await signUpWithEmail(email, password)
+      }
+      go()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'エラーが発生しました')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -41,22 +55,38 @@ export default function AuthPage() {
           <p className="text-xs text-gray-400 mt-1">積みコンテンツを断罪するアプリ</p>
         </div>
 
-        <div className="flex rounded-lg border overflow-hidden">
-          <button
-            onClick={() => setMode('login')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === 'login' ? 'bg-red-600 text-white' : 'text-gray-600'}`}
-          >
-            ログイン
-          </button>
-          <button
-            onClick={() => setMode('signup')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === 'signup' ? 'bg-red-600 text-white' : 'text-gray-600'}`}
-          >
-            新規登録
-          </button>
+        {/* Googleログイン */}
+        <button
+          onClick={handleGoogle}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-lg py-2.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm"
+        >
+          <Image src="/google-logo.svg" alt="Google" width={18} height={18} />
+          Googleでログイン
+        </button>
+
+        <div className="flex items-center gap-3 text-xs text-gray-400">
+          <div className="flex-1 h-px bg-gray-200" />
+          またはメールで
+          <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        {/* ログイン/新規登録 切り替え */}
+        <div className="flex rounded-lg border overflow-hidden">
+          {(['login', 'signup'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                mode === m ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {m === 'login' ? 'ログイン' : '新規登録'}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleEmail} className="space-y-3">
           <input
             type="email"
             value={email}
@@ -74,10 +104,7 @@ export default function AuthPage() {
             placeholder="パスワード（6文字以上）"
             className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400"
           />
-
           {error && <p className="text-red-600 text-xs">{error}</p>}
-          {message && <p className="text-green-600 text-xs">{message}</p>}
-
           <button
             type="submit"
             disabled={loading}

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { fetchContents, updateContentStatus, deleteContent } from '@/lib/firestore'
 import { Content, ContentStatus } from '@/lib/types'
 import { ContentWithScore, enrichContents, TYPE_ICON, TYPE_LABEL } from '@/lib/contents'
 import { getScoreLevel, SCORE_LEVEL_META } from '@/lib/score'
@@ -12,69 +13,51 @@ import { ScoreBar } from '@/components/ScoreBar'
 import { pickRoast } from '@/lib/roast'
 
 const STATUS_LABELS: Record<ContentStatus, string> = {
-  unplayed:    '未消化',
-  in_progress: '進行中',
-  completed:   '消化済み',
-  abandoned:   '放棄',
+  unplayed: '未消化', in_progress: '進行中', completed: '消化済み', abandoned: '放棄',
 }
 
 export default function ItemPage() {
-  const { id } = useParams<{ id: string }>()
-  const router = useRouter()
-  const supabase = createClient()
-  const [item, setItem] = useState<ContentWithScore | null>(null)
+  const { id }   = useParams<{ id: string }>()
+  const router   = useRouter()
+  const { user } = useAuth()
+  const [item, setItem]     = useState<ContentWithScore | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
-
-      const { data } = await supabase
-        .from('contents')
-        .select('*')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single()
-
-      if (data) {
-        const { data: all } = await supabase.from('contents').select('*').eq('user_id', user.id)
-        const enriched = enrichContents((all ?? []) as Content[])
-        setItem(enriched.find((i) => i.id === id) ?? null)
-      }
+      if (!user) return
+      const all = await fetchContents(user.uid)
+      const enriched = enrichContents(all as Content[])
+      setItem(enriched.find((i) => i.id === id) ?? null)
       setLoading(false)
     }
-    load()
-  }, [id])
+    if (user) load()
+  }, [user, id])
 
   const handleStatusChange = async (status: ContentStatus) => {
-    await supabase.from('contents').update({ status }).eq('id', id)
-    router.refresh()
+    if (!user) return
+    await updateContentStatus(user.uid, id, status)
     router.push('/')
   }
 
   const handleDelete = async () => {
-    if (!confirm(`「${item?.title}」を削除しますか？`)) return
+    if (!user || !item) return
+    if (!confirm(`「${item.title}」を削除しますか？`)) return
     setDeleting(true)
-    await supabase.from('contents').delete().eq('id', id)
+    await deleteContent(user.uid, id)
     router.push('/')
   }
 
   if (loading) return <div className="p-8 text-center text-gray-400">読み込み中...</div>
-  if (!item) return <div className="p-8 text-center text-gray-400">見つかりません</div>
+  if (!item)   return <div className="p-8 text-center text-gray-400">見つかりません</div>
 
   const level = getScoreLevel(item.score.total)
-  const meta = SCORE_LEVEL_META[level]
+  const meta  = SCORE_LEVEL_META[level]
   const roastText = pickRoast(level, item.type, {
-    title: item.title,
-    price: item.price,
-    days: item.score.days,
-    months: item.score.days / 30,
-    per_day: item.price / Math.max(item.score.days, 1),
-    fresh_months: item.score.freshMonths,
-    undone: 0,
+    title: item.title, price: item.price, days: item.score.days,
+    months: item.score.days / 30, per_day: item.price / Math.max(item.score.days, 1),
+    fresh_months: item.score.freshMonths, undone: 0,
   })
 
   return (
@@ -84,11 +67,7 @@ export default function ItemPage() {
           <Link href="/" className="text-gray-500 hover:text-gray-900">←</Link>
           <h1 className="font-bold text-sm truncate max-w-48">{item.title}</h1>
         </div>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
-        >
+        <button onClick={handleDelete} disabled={deleting} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">
           削除
         </button>
       </header>
@@ -102,18 +81,12 @@ export default function ItemPage() {
                 <h2 className="font-bold text-lg">{item.title}</h2>
               </div>
               <p className="text-sm text-gray-500">
-                {TYPE_LABEL[item.type]}
-                {item.platform && ` · ${item.platform}`}
-                {' · '}¥{item.price.toLocaleString()}
+                {TYPE_LABEL[item.type]}{item.platform && ` · ${item.platform}`} · ¥{item.price.toLocaleString()}
               </p>
             </div>
             <ScoreBadge score={item.score.total} size="lg" />
           </div>
-
-          <p className="text-base italic text-gray-700 mb-4 border-l-4 border-red-400 pl-3">
-            「{roastText}」
-          </p>
-
+          <p className="text-base italic text-gray-700 mb-4 border-l-4 border-red-400 pl-3">「{roastText}」</p>
           <div className="space-y-2">
             <ScoreBar label="日数" value={item.score.dayScore}       max={30} />
             <ScoreBar label="消化" value={item.score.digestScore}    max={25} />
@@ -125,14 +98,10 @@ export default function ItemPage() {
         <div className="bg-white rounded-xl border p-4 space-y-3">
           <h3 className="font-bold text-sm">情報</h3>
           <dl className="grid grid-cols-2 gap-2 text-sm">
-            <dt className="text-gray-500">購入日</dt>
-            <dd>{item.purchased_at}</dd>
-            <dt className="text-gray-500">経過日数</dt>
-            <dd>{item.score.days}日</dd>
-            <dt className="text-gray-500">発売日</dt>
-            <dd>{item.release_date}</dd>
-            <dt className="text-gray-500">現在のステータス</dt>
-            <dd>{STATUS_LABELS[item.status]}</dd>
+            <dt className="text-gray-500">購入日</dt><dd>{item.purchased_at}</dd>
+            <dt className="text-gray-500">経過日数</dt><dd>{item.score.days}日</dd>
+            <dt className="text-gray-500">発売日</dt><dd>{item.release_date}</dd>
+            <dt className="text-gray-500">ステータス</dt><dd>{STATUS_LABELS[item.status]}</dd>
           </dl>
           {item.tags && item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 pt-1">
@@ -143,7 +112,7 @@ export default function ItemPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border p-4 space-y-2">
+        <div className="bg-white rounded-xl border p-4">
           <h3 className="font-bold text-sm mb-3">ステータス変更</h3>
           <div className="grid grid-cols-2 gap-2">
             {(['in_progress', 'completed', 'abandoned', 'unplayed'] as ContentStatus[]).map((s) => (
@@ -152,13 +121,10 @@ export default function ItemPage() {
                 onClick={() => handleStatusChange(s)}
                 disabled={item.status === s}
                 className={`text-sm py-2 rounded-lg border font-medium transition-colors ${
-                  item.status === s
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-default'
-                    : s === 'completed'
-                    ? 'border-green-500 text-green-700 hover:bg-green-50'
-                    : s === 'abandoned'
-                    ? 'border-gray-400 text-gray-600 hover:bg-gray-50'
-                    : 'border-blue-400 text-blue-700 hover:bg-blue-50'
+                  item.status === s ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-default'
+                  : s === 'completed' ? 'border-green-500 text-green-700 hover:bg-green-50'
+                  : s === 'abandoned' ? 'border-gray-400 text-gray-600 hover:bg-gray-50'
+                  : 'border-blue-400 text-blue-700 hover:bg-blue-50'
                 }`}
               >
                 {STATUS_LABELS[s]}
@@ -166,13 +132,6 @@ export default function ItemPage() {
             ))}
           </div>
         </div>
-
-        <Link
-          href={`/add?edit=${id}`}
-          className="block text-center text-sm text-gray-500 hover:text-gray-900 py-2"
-        >
-          編集する →
-        </Link>
       </div>
     </div>
   )

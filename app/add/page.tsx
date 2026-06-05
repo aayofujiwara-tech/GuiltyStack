@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { addContent } from '@/lib/firestore'
 import { ContentType } from '@/lib/types'
 
 const TYPES: { value: ContentType; label: string; icon: string }[] = [
@@ -16,48 +17,38 @@ const TYPES: { value: ContentType; label: string; icon: string }[] = [
 
 export default function AddPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const { user } = useAuth()
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-
+  const [error, setError]           = useState('')
   const today = new Date().toISOString().split('T')[0]
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!user) { setError('ログインが必要です'); return }
     setSubmitting(true)
     setError('')
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setError('ログインが必要です')
-      setSubmitting(false)
-      return
-    }
-
     const fd = new FormData(e.currentTarget)
-    const payload = {
-      user_id: user.id,
-      title: fd.get('title') as string,
-      type: fd.get('type') as ContentType,
-      price: parseInt(fd.get('price') as string, 10),
-      purchased_at: fd.get('purchased_at') as string,
-      release_date: fd.get('release_date') as string,
-      platform: (fd.get('platform') as string) || null,
-      cover_image_url: (fd.get('cover_image_url') as string) || null,
-      tags: (fd.get('tags') as string)
-        ? (fd.get('tags') as string).split(/[,、]/).map((t) => t.trim()).filter(Boolean)
-        : null,
-      status: 'unplayed' as const,
-      freshness_source: 'manual' as const,
-    }
-
-    const { error: err } = await supabase.from('contents').insert(payload)
-    if (err) {
-      setError(err.message)
+    try {
+      await addContent(user.uid, {
+        title:           fd.get('title') as string,
+        type:            fd.get('type') as ContentType,
+        price:           parseInt(fd.get('price') as string, 10),
+        purchased_at:    fd.get('purchased_at') as string,
+        release_date:    fd.get('release_date') as string,
+        platform:        (fd.get('platform') as string) || null,
+        cover_image_url: (fd.get('cover_image_url') as string) || null,
+        tags:            (fd.get('tags') as string)
+          ? (fd.get('tags') as string).split(/[,、]/).map((t) => t.trim()).filter(Boolean)
+          : null,
+        status:           'unplayed',
+        freshness_source: 'manual',
+      })
+      router.push('/')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'エラーが発生しました')
       setSubmitting(false)
-      return
     }
-    router.push('/')
   }
 
   return (
@@ -69,12 +60,7 @@ export default function AddPage() {
 
       <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 space-y-5">
         <Field label="タイトル *">
-          <input
-            name="title"
-            required
-            placeholder="例: Elden Ring"
-            className="input"
-          />
+          <input name="title" required placeholder="例: Elden Ring" className="field-input" />
         </Field>
 
         <Field label="コンテンツタイプ *">
@@ -93,60 +79,28 @@ export default function AddPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="購入金額（円）*">
-            <input
-              name="price"
-              type="number"
-              min={0}
-              required
-              placeholder="8800"
-              className="input"
-            />
+            <input name="price" type="number" min={0} required placeholder="8800" className="field-input" />
           </Field>
           <Field label="プラットフォーム">
-            <input
-              name="platform"
-              placeholder="Switch / Steam..."
-              className="input"
-            />
+            <input name="platform" placeholder="Switch / Steam..." className="field-input" />
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="購入日 *">
-            <input
-              name="purchased_at"
-              type="date"
-              required
-              defaultValue={today}
-              className="input"
-            />
+            <input name="purchased_at" type="date" required defaultValue={today} className="field-input" />
           </Field>
           <Field label="発売日 *">
-            <input
-              name="release_date"
-              type="date"
-              required
-              defaultValue={today}
-              className="input"
-            />
+            <input name="release_date" type="date" required defaultValue={today} className="field-input" />
           </Field>
         </div>
 
         <Field label="カバー画像URL">
-          <input
-            name="cover_image_url"
-            type="url"
-            placeholder="https://..."
-            className="input"
-          />
+          <input name="cover_image_url" type="url" placeholder="https://..." className="field-input" />
         </Field>
 
         <Field label="タグ（カンマ区切り）">
-          <input
-            name="tags"
-            placeholder="RPG, オープンワールド"
-            className="input"
-          />
+          <input name="tags" placeholder="RPG, オープンワールド" className="field-input" />
         </Field>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -161,19 +115,11 @@ export default function AddPage() {
       </form>
 
       <style jsx>{`
-        .input {
-          width: 100%;
-          border: 1px solid #d1d5db;
-          border-radius: 0.5rem;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          background: white;
-          outline: none;
+        .field-input {
+          width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem;
+          padding: 0.5rem 0.75rem; font-size: 0.875rem; background: white; outline: none;
         }
-        .input:focus {
-          border-color: #ef4444;
-          box-shadow: 0 0 0 2px rgba(239,68,68,0.15);
-        }
+        .field-input:focus { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }
       `}</style>
     </div>
   )
