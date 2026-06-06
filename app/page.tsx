@@ -11,6 +11,7 @@ import { ContentWithScore, enrichContents, lotteryPick } from '@/lib/contents'
 import { ContentCard } from '@/components/ContentCard'
 import { MobileHeader } from '@/components/MobileHeader'
 import { Sidebar } from '@/components/Sidebar'
+import SharePreviewModal from '@/components/SharePreviewModal'
 
 type SortKey = 'score' | 'date' | 'price'
 
@@ -23,6 +24,7 @@ export default function HomePage() {
   const [dataLoading, setDataLoading] = useState(true)
   const [sort, setSort]           = useState<SortKey>('score')
   const [isPC, setIsPC]           = useState(false)
+  const [showSummaryModal, setShowSummaryModal] = useState(false)
 
   const load = useCallback(async () => {
     setDataLoading(true)
@@ -102,18 +104,7 @@ export default function HomePage() {
                   </h2>
                   {sentenced.length > 0 && (
                     <button
-                      onClick={() => {
-                        const itemsParam = sentenced.slice(0, 2).map(item =>
-                          [item.title, item.score.total, item.roastText].join(',')
-                        ).join('|')
-                        const params = new URLSearchParams({ items: itemsParam })
-                        const ogUrl = `https://guilty-stack.vercel.app/api/og/summary?${params}`
-                        const tweetText = encodeURIComponent(
-                          `今日の積罪断罪結果\n${sentenced.slice(0, 2).map(i => `・${i.title}：${i.score.total}点`).join('\n')}\n\n#積罪 #GuiltyStack`
-                        )
-                        const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(ogUrl)}`
-                        window.open(tweetUrl, '_blank')
-                      }}
+                      onClick={() => setShowSummaryModal(true)}
                       className="text-xs px-3 py-1.5 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors"
                     >
                       🐦 シェア
@@ -155,6 +146,20 @@ export default function HomePage() {
         </main>
         <MobileFab />
       </div>
+      {showSummaryModal && (() => {
+        const itemsParam = sentenced.slice(0, 2).map(item =>
+          [item.title, item.score.total, item.roastText].join(',')
+        ).join('|')
+        const summaryImageUrl = `https://guilty-stack.vercel.app/api/og/summary?${new URLSearchParams({ items: itemsParam })}`
+        const summaryTweetText = `今日の積罪断罪結果\n${sentenced.slice(0, 2).map(i => `・${i.title}：${i.score.total}点`).join('\n')}\n\n#積罪 #GuiltyStack`
+        return (
+          <SharePreviewModal
+            imageUrl={summaryImageUrl}
+            tweetText={summaryTweetText}
+            onClose={() => setShowSummaryModal(false)}
+          />
+        )
+      })()}
     </div>
   )
 }

@@ -12,6 +12,7 @@ import { getScoreLevel, SCORE_LEVEL_META } from '@/lib/score'
 import { ScoreBadge } from '@/components/ScoreBadge'
 import { ScoreBar } from '@/components/ScoreBar'
 import { pickRoast } from '@/lib/roast'
+import SharePreviewModal from '@/components/SharePreviewModal'
 
 const STATUS_LABELS: Record<ContentStatus, string> = {
   unplayed: '未消化', in_progress: '進行中', completed: '消化済み', abandoned: '放棄',
@@ -30,6 +31,7 @@ export default function ItemPage() {
   const [item, setItem]     = useState<ContentWithScore | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   useEffect(() => {
     if (!user && !isTestMode) return
@@ -92,7 +94,7 @@ export default function ItemPage() {
         undone: item.undoneCount,
       })
 
-  const handleShare = () => {
+  const shareImageUrl = (() => {
     const params = new URLSearchParams({
       title: item.title,
       type: item.type,
@@ -101,13 +103,11 @@ export default function ItemPage() {
       price: String(item.price),
       roast: roastText,
     })
-    const ogUrl = `https://guilty-stack.vercel.app/api/og/content?${params}`
-    const tweetText = encodeURIComponent(
-      `【積罪】${item.title}を${item.score.days}日積んでいます。後悔スコア${displayScore}点。\n${roastText}\n\n#積罪 #GuiltyStack`
-    )
-    const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(ogUrl)}`
-    window.open(tweetUrl, '_blank')
-  }
+    return `https://guilty-stack.vercel.app/api/og/content?${params}`
+  })()
+
+  const shareTweetText =
+    `【積罪】${item.title}を${item.score.days}日積んでいます。後悔スコア${displayScore}点。\n${roastText}\n\n#積罪 #GuiltyStack`
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,7 +164,7 @@ export default function ItemPage() {
         </div>
 
         <button
-          onClick={handleShare}
+          onClick={() => setShowShareModal(true)}
           className="w-full bg-black text-white text-sm py-3 rounded-xl font-medium hover:bg-gray-900 transition-colors"
         >
           🐦 Xでシェア
@@ -191,6 +191,13 @@ export default function ItemPage() {
           </div>
         </div>
       </div>
+      {showShareModal && (
+        <SharePreviewModal
+          imageUrl={shareImageUrl}
+          tweetText={shareTweetText}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   )
 }
