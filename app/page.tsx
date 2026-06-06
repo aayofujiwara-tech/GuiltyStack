@@ -146,20 +146,14 @@ export default function HomePage() {
         </main>
         <MobileFab />
       </div>
-      {showSummaryModal && (() => {
-        const itemsParam = sentenced.slice(0, 2).map(item =>
-          [item.title, item.score.total, item.roastText].join(',')
-        ).join('|')
-        const summaryImageUrl = `https://guilty-stack.vercel.app/api/og/summary?${new URLSearchParams({ items: itemsParam })}`
-        const summaryTweetText = `今日の積罪断罪結果\n${sentenced.slice(0, 2).map(i => `・${i.title}：${i.score.total}点`).join('\n')}\n\n#積罪 #GuiltyStack`
-        return (
-          <SharePreviewModal
-            imageUrl={summaryImageUrl}
-            tweetText={summaryTweetText}
-            onClose={() => setShowSummaryModal(false)}
-          />
-        )
-      })()}
+      {showSummaryModal && (
+        <SharePreviewModal
+          mode="summary"
+          items={sentenced.slice(0, 2).map(i => ({ title: i.title, score: i.score.total, roast: i.roastText }))}
+          tweetText={`今日の積罪断罪結果\n${sentenced.slice(0, 2).map(i => `・${i.title}：${i.score.total}点`).join('\n')}\n\n#積罪 #GuiltyStack`}
+          onClose={() => setShowSummaryModal(false)}
+        />
+      )}
     </div>
   )
 }

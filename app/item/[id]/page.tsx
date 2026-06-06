@@ -94,18 +94,6 @@ export default function ItemPage() {
         undone: item.undoneCount,
       })
 
-  const shareImageUrl = (() => {
-    const params = new URLSearchParams({
-      title: item.title,
-      type: item.type,
-      score: String(displayScore),
-      days: String(item.score.days),
-      price: String(item.price),
-      roast: roastText,
-    })
-    return `https://guilty-stack.vercel.app/api/og/content?${params}`
-  })()
-
   const shareTweetText =
     `【積罪】${item.title}を${item.score.days}日積んでいます。後悔スコア${displayScore}点。\n${roastText}\n\n#積罪 #GuiltyStack`
 
@@ -193,7 +181,13 @@ export default function ItemPage() {
       </div>
       {showShareModal && (
         <SharePreviewModal
-          imageUrl={shareImageUrl}
+          mode="content"
+          title={item.title}
+          type={item.type}
+          score={displayScore}
+          days={item.score.days}
+          price={item.price}
+          roast={roastText}
           tweetText={shareTweetText}
           onClose={() => setShowShareModal(false)}
         />

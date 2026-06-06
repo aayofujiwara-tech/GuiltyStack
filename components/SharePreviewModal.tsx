@@ -1,14 +1,33 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { generateContentImage, generateSummaryImage } from '@/lib/generateShareImage'
 
-type Props = {
-  imageUrl: string
+type ContentShareParams = {
+  mode: 'content'
+  title: string
+  type: string
+  score: number
+  days: number
+  price: number
+  roast: string
   tweetText: string
+}
+
+type SummaryShareParams = {
+  mode: 'summary'
+  items: { title: string; score: number; roast: string }[]
+  tweetText: string
+}
+
+type Props = (ContentShareParams | SummaryShareParams) & {
   onClose: () => void
 }
 
-export default function SharePreviewModal({ imageUrl, tweetText, onClose }: Props) {
-  const [imgLoaded, setImgLoaded] = useState(false)
+export default function SharePreviewModal(props: Props) {
+  const { onClose } = props
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(true)
+  const blobRef = useRef<Blob | null>(null)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -16,9 +35,46 @@ export default function SharePreviewModal({ imageUrl, tweetText, onClose }: Prop
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
+  useEffect(() => {
+    let cancelled = false
+    const generate = async () => {
+      setGenerating(true)
+      const blob = props.mode === 'content'
+        ? await generateContentImage({
+            title: props.title,
+            type: props.type,
+            score: props.score,
+            days: props.days,
+            price: props.price,
+            roast: props.roast,
+          })
+        : await generateSummaryImage({ items: props.items })
+
+      if (cancelled) return
+      blobRef.current = blob
+      setBlobUrl(URL.createObjectURL(blob))
+      setGenerating(false)
+    }
+    generate()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
+    }
+  }, [blobUrl])
+
   const handleShare = () => {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(imageUrl)}`
-    window.open(url, '_blank')
+    if (blobRef.current) {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blobRef.current)
+      a.download = 'guiltystack-share.png'
+      a.click()
+    }
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(props.tweetText)}&url=${encodeURIComponent('https://guilty-stack.vercel.app')}`
+    window.open(tweetUrl, '_blank')
     onClose()
   }
 
@@ -69,19 +125,15 @@ export default function SharePreviewModal({ imageUrl, tweetText, onClose }: Prop
             justifyContent: 'center',
           }}
         >
-          {!imgLoaded && (
+          {generating ? (
             <span style={{ color: '#9ca3af', fontSize: '14px' }}>画像を生成中...</span>
+          ) : (
+            <img
+              src={blobUrl!}
+              alt="シェア画像プレビュー"
+              style={{ width: '100%', display: 'block', borderRadius: '12px' }}
+            />
           )}
-          <img
-            src={imageUrl}
-            alt="シェア画像プレビュー"
-            onLoad={() => setImgLoaded(true)}
-            style={{
-              width: '100%',
-              display: imgLoaded ? 'block' : 'none',
-              borderRadius: '12px',
-            }}
-          />
         </div>
 
         <div
@@ -95,8 +147,14 @@ export default function SharePreviewModal({ imageUrl, tweetText, onClose }: Prop
             border: '1px solid #e5e7eb',
           }}
         >
-          {tweetText}
+          {props.tweetText}
         </div>
+
+        {!generating && (
+          <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
+            ※ シェアボタンを押すと画像がダウンロードされます。Xに添付してポストしてください。
+          </p>
+        )}
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
@@ -115,13 +173,14 @@ export default function SharePreviewModal({ imageUrl, tweetText, onClose }: Prop
           </button>
           <button
             onClick={handleShare}
+            disabled={generating}
             style={{
               flex: 1, padding: '12px',
               border: 'none',
               borderRadius: '8px',
-              background: '#000',
+              background: generating ? '#9ca3af' : '#000',
               color: '#fff',
-              cursor: 'pointer',
+              cursor: generating ? 'default' : 'pointer',
               fontSize: '14px',
               fontWeight: 'bold',
             }}
