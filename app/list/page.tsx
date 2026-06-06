@@ -65,7 +65,7 @@ export default function ListPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-4 py-3 flex items-center gap-3">
-        <Link href="/" className="text-gray-500 hover:text-gray-900">←</Link>
+        <Link href="/home" className="text-gray-500 hover:text-gray-900">←</Link>
         <h1 className="font-bold">📋 全件リスト</h1>
       </header>
 

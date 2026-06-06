@@ -18,7 +18,7 @@ interface Props {
 }
 
 const NAV = [
-  { href: '/',      label: '🏠 ホーム' },
+  { href: '/home',  label: '🏠 ホーム' },
   { href: '/list',  label: '📋 一覧' },
   { href: '/add',   label: '➕ 追加' },
   { href: '/stats', label: '📊 統計' },

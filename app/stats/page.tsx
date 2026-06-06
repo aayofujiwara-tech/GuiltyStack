@@ -49,7 +49,7 @@ export default function StatsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-4 py-3 flex items-center gap-3">
-        <Link href="/" className="text-gray-500 hover:text-gray-900">←</Link>
+        <Link href="/home" className="text-gray-500 hover:text-gray-900">←</Link>
         <h1 className="font-bold">📊 統計</h1>
       </header>
       <div className="max-w-2xl mx-auto p-4 space-y-4">

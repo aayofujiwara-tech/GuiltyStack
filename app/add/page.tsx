@@ -86,7 +86,7 @@ export default function AddPage() {
         if (!user) { setError('ログインが必要です'); setSubmitting(false); return }
         await addContent(user.uid, payload)
       }
-      router.push('/')
+      router.push('/home')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'エラーが発生しました')
       setSubmitting(false)
@@ -96,7 +96,7 @@ export default function AddPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-4 py-3 flex items-center gap-3">
-        <Link href="/" className="text-gray-500 hover:text-gray-900">←</Link>
+        <Link href="/home" className="text-gray-500 hover:text-gray-900">←</Link>
         <h1 className="font-bold">コンテンツ登録</h1>
         {isTestMode && (
           <span className="ml-auto text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">

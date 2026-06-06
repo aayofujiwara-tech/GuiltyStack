@@ -1,183 +1,187 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
 import { useTestMode } from '@/context/TestModeContext'
-import { fetchContents, updateContentStatus } from '@/lib/firestore'
-import { Content } from '@/lib/types'
-import { ContentWithScore, enrichContents, lotteryPick } from '@/lib/contents'
-import { ContentCard } from '@/components/ContentCard'
-import { MobileHeader } from '@/components/MobileHeader'
-import { Sidebar } from '@/components/Sidebar'
-import SharePreviewModal from '@/components/SharePreviewModal'
 
-type SortKey = 'score' | 'date' | 'price'
+const SCORE_CRITERIA = [
+  { icon: '⏰', label: '経過日数', points: 30, desc: '購入から6ヶ月で満点。時間は容赦しない。' },
+  { icon: '📊', label: '消化率',   points: 25, desc: '同ジャンルで積めば積むほど加点される。' },
+  { icon: '💴', label: '金額',     points: 20, desc: '高い買い物ほど後悔も重い。' },
+  { icon: '🔥', label: '話題の鮮度', points: 25, desc: '発売直後に積むほど最悪。' },
+]
 
-export default function HomePage() {
+const SAMPLE_CARDS = [
+  { emoji: '🎮', title: 'Elden Ring',       days: 487, price: '¥8,800', score: 92,  level: '💀', roast: 'もう"積み"じゃない。"負債"だよこれ。' },
+  { emoji: '📚', title: '三体',             days: 312, price: '¥2,200', score: 68,  level: '🟠', roast: '栞が1巻の序章に刺さったまま10ヶ月。' },
+  { emoji: '🎬', title: 'オッペンハイマー', days: 120, price: '¥2,400', score: 70,  level: '🟠', roast: '発売から10ヶ月。ネタバレ踏んでない自信ある？' },
+  { emoji: '📺', title: '推しの子',         days: 400, price: '¥0',     score: 57,  level: '🟡', roast: '"見るリスト"に入れたまま13ヶ月。リストの意味は？' },
+]
+
+export default function LandingPage() {
   const { user, loading: authLoading } = useAuth()
-  const { isTestMode, testContents, updateTestStatus } = useTestMode()
+  const { isTestMode, enterTestMode } = useTestMode()
   const router = useRouter()
-  const [items, setItems]         = useState<ContentWithScore[]>([])
-  const [sentenced, setSentenced] = useState<ContentWithScore[]>([])
-  const [dataLoading, setDataLoading] = useState(true)
-  const [sort, setSort]           = useState<SortKey>('score')
-  const [isPC, setIsPC]           = useState(false)
-  const [showSummaryModal, setShowSummaryModal] = useState(false)
-
-  const load = useCallback(async () => {
-    setDataLoading(true)
-    let data: Content[]
-    if (isTestMode) {
-      data = testContents
-    } else {
-      if (!user) return
-      data = await fetchContents(user.uid)
-    }
-    // id重複排除（Firestoreの多重取得・テストデータ破損対策）
-    const unique = data.filter((item, idx, self) => idx === self.findIndex(t => t.id === item.id))
-    const enriched = enrichContents(unique)
-    const active = enriched.filter((c) => c.status !== 'completed' && c.status !== 'abandoned')
-    const pc = window.innerWidth >= 1024
-    setIsPC(pc)
-    setItems(active)
-    setSentenced(lotteryPick(active, pc ? 2 : 3))
-    setDataLoading(false)
-  }, [user, isTestMode, testContents])
 
   useEffect(() => {
-    if (!authLoading && !user && !isTestMode) router.push('/auth')
+    if (!authLoading && (user || isTestMode)) router.push('/home')
   }, [authLoading, user, isTestMode, router])
 
-  useEffect(() => {
-    if (user || isTestMode) load()
-  }, [user, isTestMode, load])
-
-  const handleComplete = async (id: string) => {
-    if (isTestMode) {
-      updateTestStatus(id, 'completed')
-      return
-    }
-    if (!user) return
-    await updateContentStatus(user.uid, id, 'completed')
-    load()
+  const handleTestMode = () => {
+    enterTestMode()
+    router.push('/home')
   }
 
-  const sorted = [...items].sort((a, b) => {
-    if (sort === 'score') return b.score.total - a.score.total
-    if (sort === 'date')  return b.score.days - a.score.days
-    return b.price - a.price
-  })
-
-  const totalPrice = items.reduce((s, i) => s + i.price, 0)
-  const avgScore   = items.length
-    ? Math.round(items.reduce((s, i) => s + i.score.total, 0) / items.length)
-    : 0
-  const oldest = items.reduce<ContentWithScore | null>(
-    (prev, cur) => !prev || cur.score.days > prev.score.days ? cur : prev,
-    null
-  )
-  const stats = { totalPrice, avgScore, oldestTitle: oldest?.title ?? '—', oldestDays: oldest?.score.days ?? 0 }
-
-  if (authLoading || (!user && !authLoading && !isTestMode)) {
-    return <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 animate-pulse">読み込み中...</p></div>
+  if (authLoading) {
+    return <div className="min-h-screen bg-[#0a0a0a]" />
   }
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar stats={stats} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <MobileHeader totalPrice={totalPrice} avgScore={avgScore} oldestDays={oldest?.score.days ?? 0} />
-        <main className="flex-1 p-4 lg:p-6 max-w-4xl mx-auto w-full pb-24 lg:pb-6">
-          {dataLoading ? (
-            <p className="text-center text-gray-400 py-16 animate-pulse">断罪準備中...</p>
-          ) : items.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <>
-              <section className="mb-8">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-bold text-base flex items-center gap-2">
-                    🎲 今日の断罪
-                    <span className="text-xs text-gray-400 font-normal">（重み付き抽選）</span>
-                  </h2>
-                  {sentenced.length > 0 && (
-                    <button
-                      onClick={() => setShowSummaryModal(true)}
-                      className="text-xs px-3 py-1.5 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors"
-                    >
-                      🐦 シェア
-                    </button>
-                  )}
-                </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {sentenced.map((item) => (
-                    <ContentCard key={item.id} item={item} showBreakdown={isPC} onComplete={handleComplete} />
-                  ))}
-                </div>
-              </section>
+    <div style={{ background: '#0a0a0a', color: '#f9fafb', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
 
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-bold text-base">── 全件リスト</h2>
-                  <div className="flex gap-1">
-                    {(['score', 'date', 'price'] as SortKey[]).map((k) => (
-                      <button
-                        key={k}
-                        onClick={() => setSort(k)}
-                        className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                          sort === k ? 'bg-red-600 text-white border-red-600' : 'border-gray-300 text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        {k === 'score' ? '後悔順▼' : k === 'date' ? '日付' : '金額'}
-                      </button>
-                    ))}
-                  </div>
+      {/* Hero */}
+      <section style={{ textAlign: 'center', padding: '80px 24px 64px' }}>
+        <p style={{ fontSize: '48px', marginBottom: '8px' }}>💀</p>
+        <h1 style={{ fontSize: 'clamp(32px, 6vw, 64px)', fontWeight: 900, letterSpacing: '-1px', marginBottom: '8px' }}>
+          積罪
+        </h1>
+        <p style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '4px', marginBottom: '4px' }}>
+          つみざい / GuiltyStack
+        </p>
+        <p style={{ fontSize: 'clamp(16px, 3vw, 22px)', color: '#d1d5db', marginTop: '24px', marginBottom: '40px', lineHeight: 1.6 }}>
+          あなたの積みコンテンツを、容赦なく断罪する。
+        </p>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleTestMode}
+            style={{
+              background: '#dc2626', color: '#fff', border: 'none',
+              borderRadius: '9999px', padding: '14px 28px',
+              fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            👀 テストモードで試す（登録不要）
+          </button>
+          <button
+            onClick={() => router.push('/auth')}
+            style={{
+              background: 'transparent', color: '#f9fafb',
+              border: '1px solid #374151',
+              borderRadius: '9999px', padding: '14px 28px',
+              fontSize: '15px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            ログイン / 新規登録
+          </button>
+        </div>
+      </section>
+
+      {/* なぜ断罪されるのか */}
+      <section style={{ maxWidth: '840px', margin: '0 auto', padding: '64px 24px' }}>
+        <h2 style={{ textAlign: 'center', fontSize: 'clamp(20px, 4vw, 28px)', fontWeight: 800, marginBottom: '40px' }}>
+          なぜ積むと断罪されるのか
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+          {SCORE_CRITERIA.map((c) => (
+            <div
+              key={c.label}
+              style={{
+                background: '#111111', border: '1px solid #dc2626',
+                borderRadius: '16px', padding: '24px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '28px' }}>{c.icon}</span>
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: '16px' }}>{c.label}</span>
+                  <span style={{ marginLeft: '8px', color: '#dc2626', fontWeight: 700 }}>（{c.points}点）</span>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {sorted.map((item) => (
-                    <ContentCard key={item.id} item={item} onComplete={handleComplete} />
-                  ))}
+              </div>
+              <p style={{ color: '#9ca3af', fontSize: '14px', lineHeight: 1.6, margin: 0 }}>{c.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 毒舌サンプル */}
+      <section style={{ maxWidth: '840px', margin: '0 auto', padding: '0 24px 64px' }}>
+        <h2 style={{ textAlign: 'center', fontSize: 'clamp(20px, 4vw, 28px)', fontWeight: 800, marginBottom: '40px' }}>
+          積罪はこう断罪する
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+          {SAMPLE_CARDS.map((card) => (
+            <div
+              key={card.title}
+              style={{ background: '#111111', borderRadius: '16px', padding: '20px', border: '1px solid #1f2937' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div>
+                  <span style={{ fontSize: '22px', marginRight: '8px' }}>{card.emoji}</span>
+                  <span style={{ fontWeight: 700, fontSize: '16px' }}>{card.title}</span>
+                  <p style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px', margin: '4px 0 0' }}>
+                    {card.days}日 · {card.price}
+                  </p>
                 </div>
-              </section>
-            </>
-          )}
-        </main>
-        <MobileFab />
-      </div>
-      {showSummaryModal && (
-        <SharePreviewModal
-          mode="summary"
-          items={sentenced.slice(0, 2).map(i => ({ title: i.title, score: i.score.total, roast: i.roastText }))}
-          tweetText={`今日の積罪断罪結果\n${sentenced.slice(0, 2).map(i => `・${i.title}：${i.score.total}点`).join('\n')}\n\n#積罪 #GuiltyStack`}
-          onClose={() => setShowSummaryModal(false)}
-        />
-      )}
+                <div style={{
+                  background: card.score >= 80 ? '#dc2626' : card.score >= 60 ? '#ea580c' : '#ca8a04',
+                  color: '#fff', borderRadius: '9999px', padding: '4px 12px',
+                  fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap',
+                }}>
+                  {card.score}点 {card.level}
+                </div>
+              </div>
+              <p style={{
+                borderLeft: `4px solid ${card.score >= 80 ? '#dc2626' : card.score >= 60 ? '#ea580c' : '#ca8a04'}`,
+                paddingLeft: '12px', color: '#d1d5db', fontSize: '14px',
+                fontStyle: 'italic', lineHeight: 1.6, margin: 0,
+              }}>
+                「{card.roast}」
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{ textAlign: 'center', padding: '64px 24px', background: '#0f0f0f' }}>
+        <h2 style={{ fontSize: 'clamp(20px, 4vw, 32px)', fontWeight: 800, marginBottom: '32px' }}>
+          あなたの積みを、今すぐ断罪する。
+        </h2>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleTestMode}
+            style={{
+              background: '#dc2626', color: '#fff', border: 'none',
+              borderRadius: '9999px', padding: '14px 28px',
+              fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            👀 テストモードで試す
+          </button>
+          <button
+            onClick={() => router.push('/auth')}
+            style={{
+              background: 'transparent', color: '#f9fafb',
+              border: '1px solid #374151',
+              borderRadius: '9999px', padding: '14px 28px',
+              fontSize: '15px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            アカウントを作って始める →
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ textAlign: 'center', padding: '32px 24px', borderTop: '1px solid #1f2937' }}>
+        <p style={{ color: '#374151', fontSize: '14px', margin: 0 }}>
+          💀 積罪 GuiltyStack
+        </p>
+        <p style={{ color: '#374151', fontSize: '12px', marginTop: '6px' }}>
+          © 2026 GuiltyStack
+        </p>
+      </footer>
     </div>
-  )
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <p className="text-5xl mb-4">🎉</p>
-      <h2 className="text-lg font-bold mb-2">断罪対象なし</h2>
-      <p className="text-gray-500 text-sm mb-6">積みコンテンツを登録して断罪を始めよう</p>
-      <Link href="/add" className="bg-red-600 text-white px-6 py-2 rounded-full font-bold text-sm hover:bg-red-700 transition-colors">
-        ＋ 追加する
-      </Link>
-    </div>
-  )
-}
-
-function MobileFab() {
-  return (
-    <Link
-      href="/add"
-      className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-red-700 transition-colors z-20"
-    >
-      ＋
-    </Link>
   )
 }

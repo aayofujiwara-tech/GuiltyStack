@@ -15,11 +15,11 @@ export default function AuthPage() {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
-  const go = () => router.push('/')
+  const go = () => router.push('/home')
 
   const handleTestMode = () => {
     enterTestMode()
-    router.push('/')
+    router.push('/home')
   }
 
   const handleGoogle = async () => {

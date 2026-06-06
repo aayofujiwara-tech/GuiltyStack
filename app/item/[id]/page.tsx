@@ -52,12 +52,12 @@ export default function ItemPage() {
 
     if (isTestMode) {
       updateTestStatus(id, status)
-      router.push('/')
+      router.push('/home')
       return
     }
     if (!user) return
     await updateContentStatus(user.uid, id, status)
-    router.push('/')
+    router.push('/home')
   }
 
   const handleDelete = async () => {
@@ -65,13 +65,13 @@ export default function ItemPage() {
     if (!confirm(`「${item.title}」を削除しますか？`)) return
     if (isTestMode) {
       deleteTestContent(id)
-      router.push('/')
+      router.push('/home')
       return
     }
     if (!user) return
     setDeleting(true)
     await deleteContent(user.uid, id)
-    router.push('/')
+    router.push('/home')
   }
 
   if (loading) return <div className="p-8 text-center text-gray-400">読み込み中...</div>
@@ -101,7 +101,7 @@ export default function ItemPage() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-gray-500 hover:text-gray-900">←</Link>
+          <Link href="/home" className="text-gray-500 hover:text-gray-900">←</Link>
           <h1 className="font-bold text-sm truncate max-w-48">{item.title}</h1>
         </div>
         <button onClick={handleDelete} disabled={deleting} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">
