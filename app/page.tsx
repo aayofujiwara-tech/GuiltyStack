@@ -95,10 +95,31 @@ export default function HomePage() {
           ) : (
             <>
               <section className="mb-8">
-                <h2 className="font-bold text-base mb-3 flex items-center gap-2">
-                  🎲 今日の断罪
-                  <span className="text-xs text-gray-400 font-normal">（重み付き抽選）</span>
-                </h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-bold text-base flex items-center gap-2">
+                    🎲 今日の断罪
+                    <span className="text-xs text-gray-400 font-normal">（重み付き抽選）</span>
+                  </h2>
+                  {sentenced.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const itemsParam = sentenced.slice(0, 2).map(item =>
+                          [item.title, item.score.total, item.roastText].join(',')
+                        ).join('|')
+                        const params = new URLSearchParams({ items: itemsParam })
+                        const ogUrl = `https://guilty-stack.vercel.app/api/og/summary?${params}`
+                        const tweetText = encodeURIComponent(
+                          `今日の積罪断罪結果\n${sentenced.slice(0, 2).map(i => `・${i.title}：${i.score.total}点`).join('\n')}\n\n#積罪 #GuiltyStack`
+                        )
+                        const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(ogUrl)}`
+                        window.open(tweetUrl, '_blank')
+                      }}
+                      className="text-xs px-3 py-1.5 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors"
+                    >
+                      🐦 シェア
+                    </button>
+                  )}
+                </div>
                 <div className="grid gap-3 lg:grid-cols-2">
                   {sentenced.map((item) => (
                     <ContentCard key={item.id} item={item} showBreakdown={isPC} onComplete={handleComplete} />

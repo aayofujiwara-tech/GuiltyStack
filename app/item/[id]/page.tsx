@@ -92,6 +92,23 @@ export default function ItemPage() {
         undone: item.undoneCount,
       })
 
+  const handleShare = () => {
+    const params = new URLSearchParams({
+      title: item.title,
+      type: item.type,
+      score: String(displayScore),
+      days: String(item.score.days),
+      price: String(item.price),
+      roast: roastText,
+    })
+    const ogUrl = `https://guilty-stack.vercel.app/api/og/content?${params}`
+    const tweetText = encodeURIComponent(
+      `【積罪】${item.title}を${item.score.days}日積んでいます。後悔スコア${displayScore}点。\n${roastText}\n\n#積罪 #GuiltyStack`
+    )
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(ogUrl)}`
+    window.open(tweetUrl, '_blank')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
@@ -145,6 +162,13 @@ export default function ItemPage() {
             </div>
           )}
         </div>
+
+        <button
+          onClick={handleShare}
+          className="w-full bg-black text-white text-sm py-3 rounded-xl font-medium hover:bg-gray-900 transition-colors"
+        >
+          🐦 Xでシェア
+        </button>
 
         <div className="bg-white rounded-xl border p-4">
           <h3 className="font-bold text-sm mb-3">ステータス変更</h3>
