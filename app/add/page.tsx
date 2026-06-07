@@ -7,6 +7,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useTestMode } from '@/context/TestModeContext'
 import { addContent } from '@/lib/firestore'
 import { ContentType } from '@/lib/types'
+import TitleSearchInput from '@/components/TitleSearchInput'
+import type { SearchResult } from '@/lib/searchApi'
 
 const TYPES: { value: ContentType; label: string; icon: string }[] = [
   { value: 'game',  label: 'ゲーム', icon: '🎮' },
@@ -24,17 +26,33 @@ export default function AddPage() {
   const [error, setError]           = useState('')
   const today = new Date().toISOString().split('T')[0]
 
+  const [selectedType, setSelectedType] = useState<ContentType>('game')
+  const [title, setTitle]               = useState('')
+  const [releaseDate, setReleaseDate]   = useState(today)
+  const [coverImageUrl, setCoverImageUrl] = useState('')
+  const [autoFilled, setAutoFilled]     = useState<{ releaseDate: boolean; cover: boolean }>({ releaseDate: false, cover: false })
+
+  const handleSelect = (result: SearchResult) => {
+    if (result.releaseDate) {
+      setReleaseDate(result.releaseDate)
+      setAutoFilled(prev => ({ ...prev, releaseDate: true }))
+    }
+    if (result.coverImageUrl) {
+      setCoverImageUrl(result.coverImageUrl)
+      setAutoFilled(prev => ({ ...prev, cover: true }))
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setSubmitting(true)
     setError('')
 
     const fd = new FormData(e.currentTarget)
-    const titleVal      = (fd.get('title') as string).trim()
-    const priceVal      = parseInt(fd.get('price') as string, 10)
-    const purchasedAt   = fd.get('purchased_at') as string
-    const releaseDate   = fd.get('release_date') as string
-    const todayStr      = new Date().toISOString().split('T')[0]
+    const titleVal    = title.trim()
+    const priceVal    = parseInt(fd.get('price') as string, 10)
+    const purchasedAt = fd.get('purchased_at') as string
+    const todayStr    = new Date().toISOString().split('T')[0]
 
     if (!titleVal) {
       setError('タイトルを入力してください')
@@ -59,12 +77,12 @@ export default function AddPage() {
 
     const payload = {
       title:           titleVal,
-      type:            fd.get('type') as ContentType,
+      type:            selectedType,
       price:           priceVal,
       purchased_at:    purchasedAt,
       release_date:    releaseDate,
       platform:        (fd.get('platform') as string) || null,
-      cover_image_url: (fd.get('cover_image_url') as string) || null,
+      cover_image_url: coverImageUrl || null,
       tags:            (fd.get('tags') as string)
         ? (fd.get('tags') as string).split(/[,、]/).map((t) => t.trim()).filter(Boolean)
         : null,
@@ -106,15 +124,19 @@ export default function AddPage() {
       </header>
 
       <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 space-y-5">
-        <Field label="タイトル *">
-          <input name="title" required placeholder="例: Elden Ring" className="field-input" />
-        </Field>
-
         <Field label="コンテンツタイプ *">
           <div className="grid grid-cols-5 gap-2">
             {TYPES.map((t) => (
               <label key={t.value} className="flex flex-col items-center gap-1 cursor-pointer">
-                <input type="radio" name="type" value={t.value} required className="sr-only peer" />
+                <input
+                  type="radio"
+                  name="type"
+                  value={t.value}
+                  required
+                  checked={selectedType === t.value}
+                  onChange={() => setSelectedType(t.value)}
+                  className="sr-only peer"
+                />
                 <span className="w-full text-center py-2 rounded-lg border border-gray-200 text-2xl peer-checked:border-red-500 peer-checked:bg-red-50 transition-colors">
                   {t.icon}
                 </span>
@@ -122,6 +144,18 @@ export default function AddPage() {
               </label>
             ))}
           </div>
+        </Field>
+
+        <Field label="タイトル *">
+          <TitleSearchInput
+            type={selectedType}
+            value={title}
+            onChange={(v) => {
+              setTitle(v)
+              setAutoFilled({ releaseDate: false, cover: false })
+            }}
+            onSelect={handleSelect}
+          />
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
@@ -138,12 +172,30 @@ export default function AddPage() {
             <input name="purchased_at" type="date" required defaultValue={today} className="field-input" />
           </Field>
           <Field label="発売日 *">
-            <input name="release_date" type="date" required defaultValue={today} className="field-input" />
+            <input
+              type="date"
+              required
+              value={releaseDate}
+              onChange={(e) => {
+                setReleaseDate(e.target.value)
+                setAutoFilled(prev => ({ ...prev, releaseDate: false }))
+              }}
+              className={`field-input${autoFilled.releaseDate ? ' auto-filled' : ''}`}
+            />
           </Field>
         </div>
 
         <Field label="カバー画像URL">
-          <input name="cover_image_url" type="url" placeholder="https://..." className="field-input" />
+          <input
+            type="url"
+            value={coverImageUrl}
+            onChange={(e) => {
+              setCoverImageUrl(e.target.value)
+              setAutoFilled(prev => ({ ...prev, cover: false }))
+            }}
+            placeholder="https://..."
+            className={`field-input${autoFilled.cover ? ' auto-filled' : ''}`}
+          />
         </Field>
 
         <Field label="タグ（カンマ区切り）">
@@ -167,6 +219,7 @@ export default function AddPage() {
           padding: 0.5rem 0.75rem; font-size: 0.875rem; background: white; outline: none;
         }
         .field-input:focus { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }
+        .auto-filled { background: #f3f4f6 !important; }
       `}</style>
     </div>
   )
