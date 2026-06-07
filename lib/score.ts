@@ -32,7 +32,8 @@ export function calcRegretScore(
   const digestRate = sameTypeStats.total > 0
     ? sameTypeStats.completed / sameTypeStats.total
     : 0
-  const digestScore = Math.round((1 - digestRate) * 25)
+  const daysFactor = Math.min(days / 30, 1.0)
+  const digestScore = Math.round((1 - digestRate) * 25 * daysFactor)
 
   let priceScore = 0
   if (content.price >= 5000)      priceScore = 20
