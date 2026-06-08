@@ -1,14 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
+    // User document itself (no subcollections)
+    match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Contents subcollection with field validation
     match /users/{userId}/contents/{contentId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null
         && request.auth.uid == userId
-        && request.resource.data.type in ['game','book','manga','movie','anime']
-        && request.resource.data.status in ['unplayed','in_progress','completed','abandoned']
+        && request.resource.data.type in ['game', 'book', 'manga', 'movie', 'anime']
+        && request.resource.data.status in ['unplayed', 'in_progress', 'completed', 'abandoned']
         && request.resource.data.price is int
         && request.resource.data.price >= 0;
     }
